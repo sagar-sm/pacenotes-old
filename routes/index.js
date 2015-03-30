@@ -4,7 +4,7 @@ var router = express.Router();
 
 var apn = require('apn');           // Apple Push Notification service module
 var DS = require('darksky');   // Darksky API
-var distance = require('distance')  // Google Distance Matrix API
+var distance = require('google-distance')  // Google Distance Matrix API
 
 //setup darksky
 var darksky = new DS.Client("api_key"); 
@@ -21,10 +21,7 @@ router.get('/', function(req, res, next) {
 
 
 //schedule this function to execute for every user at his/her desired time
-function sendNotification()
-
-  // identify device token
-  var device = new apn.Device(req.body.token);
+function getData(user){
 
   // create connection to APN gateway server
   var options = { };
@@ -32,26 +29,29 @@ function sendNotification()
 
   var _data = {};
 
-  async.series(darksky.forecast(req.body.lat, req.body.lon, function(err, data){
+  async.series(darksky.forecast(user.location.lat, user.location.lon, function(err, data){
       if(err) console.log(err);
       _data.weather = data;}),
     distance.get({ origin: 'San Francisco, CA', destination: 'San Diego, CA'}, function(err, data) {
       if (err) return console.log(err);
       _data.traffic = data;
-    }), computeNotification(_data));
+    }), computeNotification(user, _data));
 
 
   res.sendStatus(200);
 
 }
 
-function computeNotification(data) {
+//compute and send notification
+function computeNotification(user, data) {
   var traffic = data.traffic;
   var weather = data.weather;
 
+  // identify device token
+  var myDevice = new apn.Device(user.token);
   var note = new apn.Notification();
 
-  // do something with the data here and populate note as follows -
+  // do something with the data here, check whether notification is in order and populate note as follows -
 
   note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
   note.badge = 3;
@@ -59,7 +59,7 @@ function computeNotification(data) {
   note.alert = "\uD83D\uDCE7 \u2709 You have a new message";
   note.payload = {'messageFrom': 'Pacenotes'};
 
-  return note;
+  apnConnection.pushNotification(note, myDevice);
 }
 
 
