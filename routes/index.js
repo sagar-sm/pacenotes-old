@@ -29,13 +29,22 @@ function getData(user){
 
   var _data = {};
 
-  async.series(darksky.forecast(user.location.lat, user.location.lon, function(err, data){
-      if(err) console.log(err);
-      _data.weather = data;}),
-    distance.get({ origin: 'San Francisco, CA', destination: 'San Diego, CA'}, function(err, data) {
-      if (err) return console.log(err);
-      _data.traffic = data;
-    }), computeNotification(user, _data));
+  //simplify code
+  async.parallel([
+    function(callback) {
+      darksky.forecast(user.location.lat, user.location.lon, function(err, data){
+        if(err) callback(err);
+        _data.weather = data;
+        callback();
+      });
+    },
+    function(callback){
+      distance.get({ origin: 'San Francisco, CA', destination: 'San Diego, CA'}, function(err, data) {
+        if (err) return callback(err);
+        _data.traffic = data;
+        callback();
+      });
+    }], computeNotification(user, _data));
 
 
   res.sendStatus(200);
